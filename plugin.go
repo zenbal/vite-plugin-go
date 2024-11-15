@@ -20,7 +20,15 @@ func New(fileSystem fs.FS, manifestPath string) (*Plugin, error) {
 	if err := plugin.LoadManifest(manifestPath); err != nil {
 		return nil, fmt.Errorf("failed to load manifest: %w", err)
 	}
-	plugin.EntryPoints = plugin.Manifest.GetEntryPoints()
+	return plugin, nil
+}
+
+func NewWithPrefix(fileSystem fs.FS, manifestPath string, prefix string) (*Plugin, error) {
+	plugin, err := New(fileSystem, manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	plugin.Manifest.AddPrefix(prefix)
 	return plugin, nil
 }
 
@@ -56,6 +64,15 @@ func (m *Manifest) GetEntryPoints() map[string]*Chunk {
 	return entryPoints
 }
 
+func (m *Manifest) AddPrefix(prefix string) {
+	for _, entry := range *m {
+		entry.File = prefix + entry.File
+		for i := range entry.Css {
+			entry.Css[i] = prefix + entry.Css[i]
+		}
+	}
+}
+
 func (plugin *Plugin) LoadManifest(path string) error {
 	mFile, err := plugin.FileSystem.Open(path)
 	if err != nil {
@@ -65,11 +82,12 @@ func (plugin *Plugin) LoadManifest(path string) error {
 	if err := json.NewDecoder(mFile).Decode(&m); err != nil {
 		return err
 	}
+	plugin.Manifest = m
 	entryPoints := m.GetEntryPoints()
 	if len(entryPoints) == 0 {
 		return fmt.Errorf("can't load manifest with no entrypoint")
 	}
-	plugin.Manifest = m
+	plugin.EntryPoints = entryPoints
 	return nil
 }
 

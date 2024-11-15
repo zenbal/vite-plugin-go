@@ -27,6 +27,8 @@ import (
 func main() {
     // instantiate plugin. manifestPath is relative to dist
     plugin, _ := viteplugin.New(os.DirFS("path/to/dist"), ".vite/manifest.json")
+    // optionally add a prefix to file urls
+    plugin.Manifest.AddPrefix("/static/")
     // iterate over entrypoints
     for _, chunk := range plugin.EntryPoints {
         html, err := plugin.RawHTML(chunk)

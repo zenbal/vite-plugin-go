@@ -111,6 +111,26 @@ func TestGenerate(t *testing.T) {
 	}
 }
 
+func TestAddPrefix(t *testing.T) {
+	var m Manifest
+	if err := json.Unmarshal([]byte(TestManifest), &m); err != nil {
+		t.Error("failed to unmarshal manifest")
+	}
+	prefix := "/static/"
+	m.AddPrefix(prefix)
+
+	for _, chunk := range m.GetEntryPoints() {
+		if chunk.File != "" && chunk.File[:len(prefix)] != prefix {
+			t.Errorf("Expected Chunk '%v's File field to start with '%v' but got '%v'", chunk.Name, prefix, chunk.File)
+		}
+		for _, css := range chunk.Css {
+			if css[:len(prefix)] != prefix {
+				t.Errorf("Expected Css entry from Chunk '%v' to start with '%v' but got '%v'", chunk.Name, prefix, css)
+			}
+		}
+	}
+}
+
 func removeWhitespace(s string) string {
 	return strings.Map(func(r rune) rune {
 		if r == ' ' || r == '\n' || r == '\t' || r == '\r' {
