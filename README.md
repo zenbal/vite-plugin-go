@@ -25,10 +25,14 @@ import (
 )
 
 func main() {
-    // instantiate plugin. manifestPath is relative to dist
-    plugin, _ := viteplugin.New(os.DirFS("path/to/dist"), ".vite/manifest.json")
-    // optionally add a prefix to file urls
-    plugin.Manifest.AddPrefix("/static/")
+    plugin, _ := viteplugin.New(viteplugin.PluginConfig{
+        FileSystem:   os.DirFS("./dist"),
+        ManifestPath: ".vite/manifest.json", // relative to FileSystem
+        Prefix:       "/static/",            // optionally add a prefix for file URLs (has no effect in development mode)
+        DevMode:      false,
+        DevURL:       "http://localhost:5173",
+        DevEntry:     "main.ts",
+    })
     // iterate over entrypoints
     for _, chunk := range plugin.EntryPoints {
         html, err := plugin.RawHTML(chunk)

@@ -2,6 +2,7 @@ package viteplugin
 
 import (
 	"encoding/json"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -127,6 +128,48 @@ func TestAddPrefix(t *testing.T) {
 			if css[:len(prefix)] != prefix {
 				t.Errorf("Expected Css entry from Chunk '%v' to start with '%v' but got '%v'", chunk.Name, prefix, css)
 			}
+		}
+	}
+}
+
+func TestDevMode(t *testing.T) {
+	plugin, err := New(PluginConfig{
+		FileSystem:   os.DirFS("./static"),
+		ManifestPath: ".vite/manifest.json",
+		Prefix:       "/static/",
+		DevMode:      true,
+		DevURL:       "http://localhost:5173",
+		DevEntry:     "main.js",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	tests := []struct {
+		entry string
+		html  string
+	}{
+		{
+			entry: "main.js",
+			html:  "<script type=\"module\" src=\"http://localhost:5173/main.js\"></script>\n",
+		},
+		{
+			entry: "@vite/client",
+			html:  "<script type=\"module\" src=\"http://localhost:5173/@vite/client\"></script>\n",
+		},
+	}
+
+	for _, test := range tests {
+		chunk, ok := plugin.EntryPoints[test.entry]
+		if !ok {
+			t.Errorf("Expected key '%s' to exist in plugins entrypoints", test.entry)
+		}
+		html, err := plugin.RawHTML(chunk)
+		if err != nil {
+			t.Error(err)
+		}
+		if html != test.html {
+			t.Errorf("Expected generated html to be '%s' but got '%s'", test.html, html)
 		}
 	}
 }

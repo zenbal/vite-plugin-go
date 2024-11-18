@@ -13,22 +13,38 @@ type Plugin struct {
 	EntryPoints map[string]*Chunk
 }
 
-func New(fileSystem fs.FS, manifestPath string) (*Plugin, error) {
-	plugin := &Plugin{
-		FileSystem: fileSystem,
-	}
-	if err := plugin.LoadManifest(manifestPath); err != nil {
-		return nil, fmt.Errorf("failed to load manifest: %w", err)
-	}
-	return plugin, nil
+type PluginConfig struct {
+	FileSystem   fs.FS
+	ManifestPath string
+	Prefix       string
+	DevMode      bool
+	DevURL       string
+	DevEntry     string
 }
 
-func NewWithPrefix(fileSystem fs.FS, manifestPath string, prefix string) (*Plugin, error) {
-	plugin, err := New(fileSystem, manifestPath)
-	if err != nil {
-		return nil, err
+func New(config PluginConfig) (*Plugin, error) {
+	plugin := &Plugin{
+		FileSystem: config.FileSystem,
 	}
-	plugin.Manifest.AddPrefix(prefix)
+	if config.DevMode {
+		plugin.EntryPoints = map[string]*Chunk{
+			config.DevEntry: {
+				File:       config.DevURL + "/" + config.DevEntry,
+				IsDevEntry: true,
+			},
+			"@vite/client": {
+				File:       config.DevURL + "/" + "@vite/client",
+				IsDevEntry: true,
+			},
+		}
+	} else {
+		if err := plugin.LoadManifest(config.ManifestPath); err != nil {
+			return nil, fmt.Errorf("failed to load manifest: %w", err)
+		}
+		if config.Prefix != "" {
+			plugin.Manifest.AddPrefix(config.Prefix)
+		}
+	}
 	return plugin, nil
 }
 
@@ -40,6 +56,7 @@ type Chunk struct {
 	Src            string   `json:"src"`
 	IsEntry        bool     `json:"isEntry"`
 	IsDynamicEntry bool     `json:"isDynamicEntry"`
+	IsDevEntry     bool     `json:"isDevEntry"` // not in the spec
 	Imports        []string `json:"imports"`
 	DynamicImports []string `json:"dynamicImports"`
 	Css            []string `json:"css"`
@@ -66,6 +83,9 @@ func (m *Manifest) GetEntryPoints() map[string]*Chunk {
 
 func (m *Manifest) AddPrefix(prefix string) {
 	for _, entry := range *m {
+		if entry.IsDevEntry {
+			continue
+		}
 		entry.File = prefix + entry.File
 		for i := range entry.Css {
 			entry.Css[i] = prefix + entry.Css[i]
